@@ -1,0 +1,8 @@
+[Ario Plugin]
+Module=coverflow
+IAge=1
+_Name=Coverflow Plugin
+_Description=A coverflow (3D cover manipulation) plugin
+Authors=Quentin Stievenart <quentin.stievenart@gmail.com>
+Copyright=Copyright © 2011 Quentin Stievenart
+Website=http://ario-player.sourceforge.net
