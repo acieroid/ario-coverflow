@@ -51,6 +51,7 @@ struct ArioCoverflowPrivate
         GtkUIManager *ui_manager;
 
         GtkWidget *error_label;
+        GtkWidget *drawing_area;
 
         GSList *albums;
 
@@ -141,6 +142,7 @@ ario_coverflow_init (ArioCoverflow *coverflow)
 {
         ARIO_LOG_FUNCTION_START;
         GtkWidget *scrolledwindow;
+        GdkGLConfig *glconfig;
 
         coverflow->priv = ARIO_COVERFLOW_GET_PRIVATE (coverflow);
 
@@ -151,10 +153,25 @@ ario_coverflow_init (ArioCoverflow *coverflow)
 
         /* Initialize opengl or display an error */
         ARIO_LOG_DBG("Initializing OpenGL");
-        if (!gtk_gl_init_check(NULL, NULL)) {
+        if (!gtk_gl_init_check(NULL, NULL))  {
                 coverflow->priv->error_label = gtk_label_new ("Can't initialize OpenGL");
                 gtk_scrolled_window_add_with_viewport (scrolledwindow, 
                                                        coverflow->priv->error_label);
+        }
+        else {
+                glconfig = gdk_gl_config_new_by_mode (GDK_GL_MODE_RGB |
+                                                      GDK_GL_MODE_DEPTH |
+                                                      GDK_GL_MODE_DOUBLE);
+                if (glconfig == NULL) {
+                        ARIO_LOG_DBG("Cannot find double-buffered visual");
+                        glconfig = gdk_gl_config_new_by_mode (GDK_GL_MODE_RGB |
+                                                              GDK_GL_MODE_DEPTH);
+                        if (glconfig == NULL) {
+                                coverflow->priv->error_label = gtk_label_new ("Can't find any OpenGL-capable visual");
+                                gtk_scrolled_window_add_with_viewport (scrolledwindow, 
+                                                                       coverflow->priv->error_label);
+                        }
+                }
         }
 
         gtk_widget_show_all (scrolledwindow);
