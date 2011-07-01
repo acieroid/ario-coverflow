@@ -19,6 +19,7 @@
 
 #include "ario-coverflow.h"
 #include <gtk/gtk.h>
+#include <gtk/gtkgl.h>
 #include <string.h>
 #include <config.h>
 #include <glib/gi18n.h>
@@ -49,7 +50,7 @@ struct ArioCoverflowPrivate
 
         GtkUIManager *ui_manager;
 
-        GtkWidget *test_label;
+        GtkWidget *error_label;
 
         GSList *albums;
 
@@ -140,17 +141,21 @@ ario_coverflow_init (ArioCoverflow *coverflow)
 {
         ARIO_LOG_FUNCTION_START;
         GtkWidget *scrolledwindow;
-        GtkWidget *label;
 
         coverflow->priv = ARIO_COVERFLOW_GET_PRIVATE (coverflow);
 
         /* Create scrolled window */
         scrolledwindow = gtk_scrolled_window_new (NULL, NULL);
-        gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolledwindow), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+        gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolledwindow),
+                                        GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
 
-        /* Create label */
-        label = gtk_label_new ("foo");
-        gtk_scrolled_window_add_with_viewport (scrolledwindow, label);
+        /* Initialize opengl or display an error */
+        ARIO_LOG_DBG("Initializing OpenGL");
+        if (!gtk_gl_init_check(NULL, NULL)) {
+                coverflow->priv->error_label = gtk_label_new ("Can't initialize OpenGL");
+                gtk_scrolled_window_add_with_viewport (scrolledwindow, 
+                                                       coverflow->priv->error_label);
+        }
 
         gtk_widget_show_all (scrolledwindow);
 
@@ -217,7 +222,6 @@ ario_coverflow_new (GtkUIManager *mgr)
 {
         ARIO_LOG_FUNCTION_START;
         ArioCoverflow *coverflow;
-        ArioServer *server = ario_server_get_instance ();
 
         coverflow = g_object_new (TYPE_ARIO_COVERFLOW,
                                     "ui-manager", mgr,

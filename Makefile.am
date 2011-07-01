@@ -9,10 +9,12 @@ libcoverflow_la_SOURCES = \
 	ario-coverflow-plugin.h
 
 libcoverflow_la_LDFLAGS = $(PLUGIN_LIBTOOL_FLAGS)
+libcoverflow_la_LIBADD =  $(GTKGLEXT_LIBS)
 
 INCLUDES = 						\
 	-DLOCALE_DIR=\""$(prefix)/$(DATADIRNAME)/locale"\"	\
 	$(DEPS_CFLAGS)					\
+	$(GTKGLEXT_CFLAGS)				\
 	-I$(top_srcdir)					\
 	-I$(top_srcdir)/src				\
 	-I$(top_srcdir)/src/sources			\
