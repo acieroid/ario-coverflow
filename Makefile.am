@@ -3,19 +3,22 @@ plugindatadir = $(PLUGIN_DATA_DIR)
 plugin_LTLIBRARIES = libcoverflow.la
 
 libcoverflow_la_SOURCES = \
+	ario-coverflow.c \
+	ario-coverflow.h \
 	ario-coverflow-plugin.c \
-        ario-coverflow-plugin.h
-	
+	ario-coverflow-plugin.h
+
 libcoverflow_la_LDFLAGS = $(PLUGIN_LIBTOOL_FLAGS)
 
 INCLUDES = 						\
 	-DLOCALE_DIR=\""$(prefix)/$(DATADIRNAME)/locale"\"	\
-	$(DEPS_CFLAGS)   				\
-	-I$(top_srcdir) 				\
-	-I$(top_srcdir)/src      			\
-	-I$(top_srcdir)/src/lib                        	\
-	-I$(top_srcdir)/src/plugins                   	\
-	-I$(top_srcdir)/src/shell                       \
+	$(DEPS_CFLAGS)					\
+	-I$(top_srcdir)					\
+	-I$(top_srcdir)/src				\
+	-I$(top_srcdir)/src/sources			\
+	-I$(top_srcdir)/src/lib				\
+	-I$(top_srcdir)/src/plugins			\
+	-I$(top_srcdir)/src/shell			\
 	$(WARNINGS)
 
 plugin_in_files = coverflow.ario-plugin.desktop.in

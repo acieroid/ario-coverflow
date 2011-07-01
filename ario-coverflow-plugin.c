@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2002-2005 - Paolo Maggi
+ * Copyright (C) 2011 Quentin Stievenart <quentin.stievenart@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,19 +23,19 @@
 #include <config.h>
 #endif
 
-#include <string.h> /* For strlen */
-
 #include <glib/gi18n-lib.h>
 #include <gtk/gtk.h>
 
 #include <ario-debug.h>
 #include <ario-shell.h>
+#include <ario-source-manager.h>
+#include "ario-coverflow.h"
 
 #define ARIO_COVERFLOW_PLUGIN_GET_PRIVATE(object)(G_TYPE_INSTANCE_GET_PRIVATE ((object), ARIO_TYPE_COVERFLOW_PLUGIN, ArioCoverflowPluginPrivate))
 
 struct _ArioCoverflowPluginPrivate
 {
-        gpointer dummy;
+        GtkWidget *source;
 };
 
 ARIO_PLUGIN_REGISTER_TYPE(ArioCoverflowPlugin, ario_coverflow_plugin)
@@ -44,33 +44,37 @@ static void
 ario_coverflow_plugin_init (ArioCoverflowPlugin *plugin)
 {
         plugin->priv = ARIO_COVERFLOW_PLUGIN_GET_PRIVATE (plugin);
-
-        printf ("ArioCoverflowPlugin initialising\n");
 }
 
 static void
 ario_coverflow_plugin_finalize (GObject *object)
 {
-        /*
-           ArioCoverflowPlugin *plugin = ARIO_COVERFLOW_PLUGIN (object);
-           */
-        printf ("ArioCoverflowPlugin finalising\n");
-
-        G_OBJECT_CLASS (ario_Coverflow_plugin_parent_class)->finalize (object);
+        G_OBJECT_CLASS (ario_coverflow_plugin_parent_class)->finalize (object);
 }
 
 static void
 impl_activate (ArioPlugin *plugin,
                ArioShell *shell)
 {
-        printf ("ArioCoverflowPlugin activate\n");
+        GtkUIManager *uimanager;
+        ArioCoverflowPlugin *p = ARIO_COVERFLOW_PLUGIN (plugin);
+        g_object_get (shell, "ui-manager", &uimanager, NULL);
+
+        p->priv->source = ario_coverflow_new (uimanager);
+        g_return_if_fail (IS_ARIO_COVERFLOW (p->priv->source));
+
+        g_object_unref(uimanager);
+
+        ario_source_manager_append (ARIO_SOURCE (p->priv->source));
+        ario_source_manager_reorder ();
 }
 
 static void
 impl_deactivate (ArioPlugin *plugin,
                  ArioShell *shell)
 {
-        printf ("ArioCoverflowPlugin deactivate\n");
+        ArioCoverflowPlugin *p = ARIO_COVERFLOW_PLUGIN (plugin);
+        ario_source_manager_remove (ARIO_SOURCE (p->priv->source));
 }
 
 static void
