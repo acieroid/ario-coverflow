@@ -24,7 +24,6 @@
 #include <config.h>
 #include <glib/gi18n.h>
 
-/* TODO: not include all of this */
 #include "ario-debug.h"
 #include "ario-util.h"
 #include "covers/ario-cover.h"
@@ -55,8 +54,7 @@ struct ArioCoverflowPrivate
 
         GSList *albums;
 
-        /* TODO: maybe useless */
-        gboolean selected;
+        gboolean gl_initialized;
 };
 
 /* Object properties */
@@ -90,18 +88,11 @@ ario_coverflow_get_icon (ArioSource *source)
 static void
 ario_coverflow_select (ArioSource *source)
 {
-        ArioCoverflow *coverflow = ARIO_COVERFLOW (source);
-        /* TODO */
-        coverflow->priv->selected = TRUE;
 }
 
 static void
 ario_coverflow_unselect (ArioSource *source)
 {
-        ArioCoverflow *coverflow = ARIO_COVERFLOW (source);
-
-        /* Remember to be lazy until tab is selected again */
-        coverflow->priv->selected = FALSE;
 }
 
 static void
@@ -142,7 +133,7 @@ ario_coverflow_init (ArioCoverflow *coverflow)
 {
         ARIO_LOG_FUNCTION_START;
         GtkWidget *scrolledwindow;
-        GdkGLConfig *glconfig;
+        GdkGLConfig *glconfig = NULL;
 
         coverflow->priv = ARIO_COVERFLOW_GET_PRIVATE (coverflow);
 
@@ -153,6 +144,7 @@ ario_coverflow_init (ArioCoverflow *coverflow)
 
         /* Initialize opengl or display an error */
         ARIO_LOG_DBG("Initializing OpenGL");
+        coverflow->priv->gl_initialized = FALSE; /* not initialized by default */
         if (!gtk_gl_init_check(NULL, NULL))  {
                 coverflow->priv->error_label = gtk_label_new ("Can't initialize OpenGL");
                 gtk_scrolled_window_add_with_viewport (scrolledwindow, 
@@ -171,7 +163,23 @@ ario_coverflow_init (ArioCoverflow *coverflow)
                                 gtk_scrolled_window_add_with_viewport (scrolledwindow, 
                                                                        coverflow->priv->error_label);
                         }
+                        else {
+                                coverflow->priv->gl_initialized = TRUE;
+                        }
                 }
+                else {
+                        coverflow->priv->gl_initialized = TRUE;
+                }
+        }
+
+        /* If we have initialized GL, we can create the drawing area */
+        if (coverflow->priv->gl_initialized) {
+                coverflow->priv->drawing_area = gtk_drawing_area_new();
+                gtk_widget_set_gl_capability (coverflow->priv->drawing_area,
+                                              glconfig, NULL, TRUE,
+                                              GDK_GL_RGBA_TYPE);
+                gtk_scrolled_window_add_with_viewport (scrolledwindow,
+                                                       coverflow->priv->drawing_area);
         }
 
         gtk_widget_show_all (scrolledwindow);
