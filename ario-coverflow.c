@@ -39,6 +39,8 @@
 #include "lib/gtk-builder-helpers.h"
 #include "plugins/ario-plugin.h"
 
+#define LIST_SQUARE 1
+
 static void ario_coverflow_finalize (GObject *object);
 static void ario_coverflow_set_property (GObject *object,
                                            guint prop_id,
@@ -48,10 +50,16 @@ static void ario_coverflow_get_property (GObject *object,
                                            guint prop_id,
                                            GValue *value,
                                            GParamSpec *pspec);
+
 static void realize (GtkWidget *widget, gpointer data);
 static gboolean expose_event (GtkWidget *widget,
                               GdkEventExpose *event,
                               gpointer data);
+static gboolean configure_event (GtkWidget *widget,
+                                 GdkEvent *event,
+                                 gpointer data);
+
+static void draw_square (void);
 
 struct ArioCoverflowPrivate
 {
@@ -157,7 +165,7 @@ ario_coverflow_init (ArioCoverflow *coverflow)
         coverflow->priv->gl_initialized = FALSE; /* not initialized by default */
         if (!gtk_gl_init_check(NULL, NULL))  {
                 coverflow->priv->error_label = gtk_label_new ("Can't initialize OpenGL");
-                gtk_scrolled_window_add_with_viewport (scrolledwindow, 
+                gtk_scrolled_window_add_with_viewport (GTK_SCROLLED_WINDOW (scrolledwindow), 
                                                        coverflow->priv->error_label);
         }
         else {
@@ -170,7 +178,7 @@ ario_coverflow_init (ArioCoverflow *coverflow)
                                                               GDK_GL_MODE_DEPTH);
                         if (glconfig == NULL) {
                                 coverflow->priv->error_label = gtk_label_new ("Can't find any OpenGL-capable visual");
-                                gtk_scrolled_window_add_with_viewport (scrolledwindow, 
+                                gtk_scrolled_window_add_with_viewport (GTK_SCROLLED_WINDOW (scrolledwindow), 
                                                                        coverflow->priv->error_label);
                         }
                         else {
@@ -186,23 +194,28 @@ ario_coverflow_init (ArioCoverflow *coverflow)
         if (coverflow->priv->gl_initialized) {
                 ARIO_LOG_DBG ("OpenGL initialized");
                 coverflow->priv->drawing_area = gtk_drawing_area_new();
+
                 gtk_widget_set_gl_capability (coverflow->priv->drawing_area,
                                               glconfig, NULL, TRUE,
                                               GDK_GL_RGBA_TYPE);
                 gtk_widget_add_events (coverflow->priv->drawing_area,
                                        GDK_BUTTON_PRESS_MASK |
                                        GDK_VISIBILITY_NOTIFY_MASK);
+
                 g_signal_connect_after (G_OBJECT (coverflow->priv->drawing_area),
                                         "realize", G_CALLBACK (realize), NULL);
                 g_signal_connect (G_OBJECT (coverflow->priv->drawing_area),
                                   "expose_event", G_CALLBACK (expose_event), 
                                   NULL);
-                gtk_scrolled_window_add_with_viewport (scrolledwindow,
+                g_signal_connect (G_OBJECT (coverflow->priv->drawing_area),
+                                  "configure_event", G_CALLBACK (configure_event),
+                                  NULL);
+
+                gtk_scrolled_window_add_with_viewport (GTK_SCROLLED_WINDOW (scrolledwindow),
                                                        coverflow->priv->drawing_area);
         }
 
         gtk_widget_show_all (scrolledwindow);
-        realize(coverflow->priv->drawing_area, (gpointer) NULL);
 
         /* Add scrolled window to coverflow */
         gtk_box_pack_start (GTK_BOX (coverflow), scrolledwindow, TRUE, TRUE, 0);
@@ -282,14 +295,34 @@ ario_coverflow_new (GtkUIManager *mgr)
 static void
 realize (GtkWidget *widget, gpointer data)
 {
+        static GLfloat white[] = { 1.0, 1.0, 1.0, 1.0 };
+        static GLfloat light_pos[] = { 0.0, 0.0, 3.0, 0.0 };
+        static GLfloat light_diffuse[] = { 1.0, 1.0, 1.0, 1.0 };
+        static GLfloat light_specular[] = { 1.0, 1.0, 1.0, 1.0 };
+
         GdkGLContext *glcontext = gtk_widget_get_gl_context (widget);
         GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable (widget);
 
         if (!gdk_gl_drawable_gl_begin (gldrawable, glcontext))
                 return;
 
-        glClearColor(0.1, 0.1, 0.1, 1.0);
-        glClearDepth(1.0);
+        glClearColor (0.1, 0.1, 0.1, 1.0);
+        glClearDepth (1.0);
+
+        /* Light */
+        glLightfv (GL_LIGHT0, GL_POSITION, light_pos);
+        glLightfv (GL_LIGHT0, GL_DIFFUSE, light_diffuse);
+        glLightfv (GL_LIGHT0, GL_SPECULAR, light_specular);
+
+        glEnable (GL_LIGHTING);
+        glEnable (GL_LIGHT0);
+        glEnable (GL_DEPTH_TEST);
+
+        /* Display lists */
+        glNewList (LIST_SQUARE, GL_COMPILE);
+            glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, white);
+            draw_square ();
+        glEndList ();
 
         gdk_gl_drawable_gl_end (gldrawable);
 }
@@ -310,7 +343,10 @@ expose_event (GtkWidget *widget,
         glLoadIdentity();
 
         /* Draw */
-
+        glPushMatrix ();
+            glCallList (LIST_SQUARE);
+        glPopMatrix();
+    
         /* Swap buffers */
         if (gdk_gl_drawable_is_double_buffered (gldrawable))
                 gdk_gl_drawable_swap_buffers (gldrawable);
@@ -319,4 +355,43 @@ expose_event (GtkWidget *widget,
 
         gdk_gl_drawable_gl_end (gldrawable);
         return TRUE;
+}
+
+static gboolean
+configure_event (GtkWidget *widget,
+                 GdkEvent *event,
+                 gpointer data)
+{
+    GdkGLContext *glcontext = gtk_widget_get_gl_context (widget);
+    GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable (widget);
+    GtkAllocation allocation;
+
+    if (!gdk_gl_drawable_gl_begin (gldrawable, glcontext))
+        return FALSE;
+
+    gtk_widget_get_allocation (widget, &allocation);  
+    glViewport(allocation.x, allocation.y, allocation.width, allocation.height);
+
+    gdk_gl_drawable_gl_end (gldrawable);
+    return TRUE;
+}
+
+
+static void
+draw_square (void)
+{
+        int i;
+        static GLfloat vertices[4][3] = {
+            { -0.5, -0.5, 0 },
+            { -0.5,  0.5, 0 },
+            {  0.5,  0.5, 0 },
+            {  0.5, -0.5, 0 },
+        };
+        static GLfloat normal[3] = { 0.0, 0.0, 1.0 };
+
+        glBegin (GL_QUADS);
+            glNormal3fv(normal);
+            for (i = 0; i < 4; i++)
+              glVertex3fv(vertices[i]);
+        glEnd();
 }
