@@ -38,8 +38,11 @@
 #include "lib/ario-conf.h"
 #include "lib/gtk-builder-helpers.h"
 #include "plugins/ario-plugin.h"
+#include "servers/ario-server.h"
 
 #define LIST_SQUARE 1
+
+GLuint texture1 = 0;
 
 static void ario_coverflow_finalize (GObject *object);
 static void ario_coverflow_set_property (GObject *object,
@@ -60,6 +63,7 @@ static gboolean configure_event (GtkWidget *widget,
                                  gpointer data);
 
 static void draw_square (void);
+static void draw_albums (void);
 
 struct ArioCoverflowPrivate
 {
@@ -318,6 +322,17 @@ realize (GtkWidget *widget, gpointer data)
         glEnable (GL_LIGHT0);
         glEnable (GL_DEPTH_TEST);
 
+        /* Textures */
+        glEnable (GL_TEXTURE_2D);
+        glGenTextures(1, &texture1);
+        glBindTexture(GL_TEXTURE_2D, texture1);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
         /* Display lists */
         glNewList (LIST_SQUARE, GL_COMPILE);
             glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, white);
@@ -343,9 +358,7 @@ expose_event (GtkWidget *widget,
         glLoadIdentity();
 
         /* Draw */
-        glPushMatrix ();
-            glCallList (LIST_SQUARE);
-        glPopMatrix();
+        draw_albums();
     
         /* Swap buffers */
         if (gdk_gl_drawable_is_double_buffered (gldrawable))
@@ -362,18 +375,18 @@ configure_event (GtkWidget *widget,
                  GdkEvent *event,
                  gpointer data)
 {
-    GdkGLContext *glcontext = gtk_widget_get_gl_context (widget);
-    GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable (widget);
-    GtkAllocation allocation;
+        GdkGLContext *glcontext = gtk_widget_get_gl_context (widget);
+        GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable (widget);
+        GtkAllocation allocation;
 
-    if (!gdk_gl_drawable_gl_begin (gldrawable, glcontext))
-        return FALSE;
+        if (!gdk_gl_drawable_gl_begin (gldrawable, glcontext))
+                return FALSE;
 
-    gtk_widget_get_allocation (widget, &allocation);  
-    glViewport(allocation.x, allocation.y, allocation.width, allocation.height);
+        gtk_widget_get_allocation (widget, &allocation);  
+        glViewport(allocation.x, allocation.y, allocation.width, allocation.height);
 
-    gdk_gl_drawable_gl_end (gldrawable);
-    return TRUE;
+        gdk_gl_drawable_gl_end (gldrawable);
+        return TRUE;
 }
 
 
@@ -381,17 +394,48 @@ static void
 draw_square (void)
 {
         int i;
-        static GLfloat vertices[4][3] = {
-            { -0.5, -0.5, 0 },
-            { -0.5,  0.5, 0 },
-            {  0.5,  0.5, 0 },
-            {  0.5, -0.5, 0 },
+        static GLfloat vertices[4][2] = {
+            { -0.5, -0.5 },
+            { -0.5,  0.5 },
+            {  0.5,  0.5 },
+            {  0.5, -0.5 },
+        };
+        static GLfloat texture[4][2] = {
+            { 1, 0 },
+            { 0, 0 },
+            { 0, 1 },
+            { 1, 1 },
         };
         static GLfloat normal[3] = { 0.0, 0.0, 1.0 };
 
         glBegin (GL_QUADS);
-            glNormal3fv(normal);
-            for (i = 0; i < 4; i++)
-              glVertex3fv(vertices[i]);
-        glEnd();
+            glNormal3fv (normal);
+            for (i = 0; i < 4; i++) {
+                    glVertex2fv (vertices[i]);
+                    glTexCoord2fv (texture[i]);
+            }
+        glEnd ();
+}
+
+static void
+draw_albums (void)
+{
+        guchar *pixels;
+        GdkPixbuf *pixbuf;
+        GLsizei width, height;
+
+        pixbuf = ario_cover_handler_get_large_cover ();
+        if (pixbuf == NULL) {
+                ARIO_LOG_DBG ("No cover");
+                return;
+        }
+
+        pixels = gdk_pixbuf_get_pixels (pixbuf);
+        width = gdk_pixbuf_get_width (pixbuf);
+        height = gdk_pixbuf_get_height (pixbuf);
+
+        glBindTexture (GL_TEXTURE_2D, texture1);
+        glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, 
+                      GL_UNSIGNED_BYTE, (GLvoid *) pixels); 
+        glCallList (LIST_SQUARE);
 }
