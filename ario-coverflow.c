@@ -67,7 +67,7 @@ static gboolean idle (gpointer data);
 
 static gboolean draw (ArioCoverflow *coverflow);
 static void draw_square (void);
-static void draw_albums (void);
+static void draw_albums (ArioCoverflow *coverflow);
 
 static void allocate_textures (ArioCoverflow *coverflow);
 static void load_texture (ArioServerAlbum *album);
@@ -233,7 +233,7 @@ ario_coverflow_init (ArioCoverflow *coverflow)
                                                        coverflow->priv->drawing_area);
 
                 /* Get the album list */
-                coverflow->priv->album = ario_server_get_albums(NULL);
+                coverflow->priv->album = ario_server_get_albums(NULL)->next->next->next->next;
         }
 
         gtk_widget_show_all (scrolledwindow);
@@ -406,7 +406,7 @@ draw (ArioCoverflow *coverflow)
                 /* height greater */
                 glScalef (1, 1.0/coverflow->priv->window_ratio, 1);
 
-        draw_albums();
+        draw_albums(coverflow);
     
         /* Swap buffers */
         if (gdk_gl_drawable_is_double_buffered (gldrawable))
@@ -423,10 +423,10 @@ draw_square (void)
 {
         int i;
         static GLfloat vertices[4][2] = {
-            { -0.5, -0.5 },
-            { -0.5,  0.5 },
-            {  0.5,  0.5 },
-            {  0.5, -0.5 },
+            { -0.9, -0.9 },
+            { -0.9,  0.9 },
+            {  0.9,  0.9 },
+            {  0.9, -0.9 },
         };
         static GLfloat texture[4][2] = {
             { 1, 0 },
@@ -446,16 +446,27 @@ draw_square (void)
 }
 
 static void
-draw_albums (void)
+draw_albums (ArioCoverflow *coverflow)
 {
-/*        glBindTexture (GL_TEXTURE_2D, texture1);
-        glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, 
-                      GL_UNSIGNED_BYTE, (GLvoid *) pixels); 
-*/
+        int i, texture_left, texture_right;
         glCallList (LIST_SQUARE);
-        glTranslatef (-0.2, 0, 0);
-        glRotatef (angle, 0, 1, 0);
-        glCallList (LIST_SQUARE);
+        texture_left = N_COVERS/2-1;
+        texture_right = N_COVERS/2+1;
+        for (i = 0; i < N_COVERS/2; i++) {
+                glPushMatrix();
+                glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[texture_left]);
+                glTranslatef (-1.5*i, 0, 0);
+                glRotatef (40, 0, 1, 0);
+                glCallList (LIST_SQUARE);
+                glPopMatrix ();
+
+                glPushMatrix();
+                glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[texture_right]);
+                glTranslatef (1.5*i, 0, 0);
+                glRotatef (-40, 0, 1, 0);
+                glCallList (LIST_SQUARE);
+                glPopMatrix ();
+        }
 }
 
 static void
@@ -532,7 +543,7 @@ static void
 gl_init_textures(ArioCoverflow *coverflow)
 {
         int i;
-        /*glEnable (GL_TEXTURE_2D);*/
+        glEnable (GL_TEXTURE_2D);
 
         glGenTextures(N_COVERS, coverflow->priv->textures);
         for (i = 0; i < N_COVERS; i++) {
