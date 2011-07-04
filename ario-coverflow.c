@@ -64,6 +64,9 @@ static gboolean configure_event (GtkWidget *widget,
 static void draw_square (void);
 static void draw_albums (void);
 
+static void allocate_textures (ArioCoverflow *coverflow);
+static void load_texture (ArioServerAlbum *album);
+
 static void gl_init_lights(void);
 static void gl_init_textures(ArioCoverflow *coverflow);
 
@@ -317,6 +320,7 @@ realize (GtkWidget *widget, gpointer data)
         glClearDepth (1.0);
         gl_init_lights();
         gl_init_textures(coverflow);
+        allocate_textures(coverflow);
 
         /* Display lists */
         glNewList (LIST_SQUARE, GL_COMPILE);
@@ -423,6 +427,61 @@ draw_albums (void)
                       GL_UNSIGNED_BYTE, (GLvoid *) pixels); 
         glCallList (LIST_SQUARE);
 */
+}
+
+static void
+allocate_textures (ArioCoverflow *coverflow)
+{
+        int i, texture_left, texture_right;
+        GList *left, *right;
+
+        /* Current cover */
+        glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[N_COVERS/2]);
+        load_texture(coverflow->priv->album->data);
+
+        /* Left side */
+        texture_left = N_COVERS/2-1;
+        texture_right = N_COVERS/2+1;
+        right = left = coverflow->priv->album;
+        for (i = 0; i < N_COVERS/2; i++) {
+                if (g_list_previous (left)) {
+                        left = g_list_previous (left);
+                        glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[texture_left]);
+                        load_texture (left->data);
+                        texture_left--;
+                }
+                if (g_list_next (right)) {
+                        right = g_list_next (right);
+                        glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[texture_right]);
+                        load_texture (right->data);
+                        texture_right++;
+                }
+        }
+}
+
+static void
+load_texture (ArioServerAlbum *album)
+{
+        GLsizei width, height;
+        guchar *pixels;
+        gchar *cover_path;
+        GdkPixbuf *pixbuf;
+
+        ARIO_LOG_DBG ("Loading texture for: %s - %s", album->artist, album->album);
+        cover_path = ario_cover_make_cover_path (album->artist, album->album, NORMAL_COVER);
+        pixbuf = gdk_pixbuf_new_from_file (cover_path, NULL);
+        if (pixbuf == NULL) return; /* TODO: allocate a "blank" cover */
+
+        pixels = gdk_pixbuf_get_pixels (pixbuf);
+        width = gdk_pixbuf_get_width (pixbuf);
+        height = gdk_pixbuf_get_height (pixbuf);
+
+        glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, 
+                      GL_UNSIGNED_BYTE, (GLvoid *) pixels); 
+
+        g_free (cover_path);
+        g_free (pixels);
+        /*g_object_unref (pixbuf);*/
 }
 
 static void
