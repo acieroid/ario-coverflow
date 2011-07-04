@@ -41,8 +41,7 @@
 #include "servers/ario-server.h"
 
 #define LIST_SQUARE 1
-
-GLuint texture1 = 0;
+#define N_COVERS 7
 
 static void ario_coverflow_finalize (GObject *object);
 static void ario_coverflow_set_property (GObject *object,
@@ -65,6 +64,9 @@ static gboolean configure_event (GtkWidget *widget,
 static void draw_square (void);
 static void draw_albums (void);
 
+static void gl_init_lights(void);
+static void gl_init_textures(ArioCoverflow *coverflow);
+
 struct ArioCoverflowPrivate
 {
         gboolean connected;
@@ -74,7 +76,8 @@ struct ArioCoverflowPrivate
         GtkWidget *error_label;
         GtkWidget *drawing_area;
 
-        GSList *albums;
+        GList *album;
+        GLuint textures[N_COVERS];
 
         gboolean gl_initialized;
 };
@@ -207,16 +210,19 @@ ario_coverflow_init (ArioCoverflow *coverflow)
                                        GDK_VISIBILITY_NOTIFY_MASK);
 
                 g_signal_connect_after (G_OBJECT (coverflow->priv->drawing_area),
-                                        "realize", G_CALLBACK (realize), NULL);
+                                        "realize", G_CALLBACK (realize), coverflow);
                 g_signal_connect (G_OBJECT (coverflow->priv->drawing_area),
                                   "expose_event", G_CALLBACK (expose_event), 
-                                  NULL);
+                                  coverflow);
                 g_signal_connect (G_OBJECT (coverflow->priv->drawing_area),
                                   "configure_event", G_CALLBACK (configure_event),
-                                  NULL);
+                                  coverflow);
 
                 gtk_scrolled_window_add_with_viewport (GTK_SCROLLED_WINDOW (scrolledwindow),
                                                        coverflow->priv->drawing_area);
+
+                /* Get the album list */
+                coverflow->priv->album = ario_server_get_albums(NULL);
         }
 
         gtk_widget_show_all (scrolledwindow);
@@ -299,10 +305,7 @@ ario_coverflow_new (GtkUIManager *mgr)
 static void
 realize (GtkWidget *widget, gpointer data)
 {
-        static GLfloat white[] = { 1.0, 1.0, 1.0, 1.0 };
-        static GLfloat light_pos[] = { 0.0, 0.0, 3.0, 0.0 };
-        static GLfloat light_diffuse[] = { 1.0, 1.0, 1.0, 1.0 };
-        static GLfloat light_specular[] = { 1.0, 1.0, 1.0, 1.0 };
+        ArioCoverflow *coverflow = (ArioCoverflow *) data;
 
         GdkGLContext *glcontext = gtk_widget_get_gl_context (widget);
         GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable (widget);
@@ -312,30 +315,11 @@ realize (GtkWidget *widget, gpointer data)
 
         glClearColor (0.1, 0.1, 0.1, 1.0);
         glClearDepth (1.0);
-
-        /* Light */
-        glLightfv (GL_LIGHT0, GL_POSITION, light_pos);
-        glLightfv (GL_LIGHT0, GL_DIFFUSE, light_diffuse);
-        glLightfv (GL_LIGHT0, GL_SPECULAR, light_specular);
-
-        glEnable (GL_LIGHTING);
-        glEnable (GL_LIGHT0);
-        glEnable (GL_DEPTH_TEST);
-
-        /* Textures */
-        glEnable (GL_TEXTURE_2D);
-        glGenTextures(1, &texture1);
-        glBindTexture(GL_TEXTURE_2D, texture1);
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+        gl_init_lights();
+        gl_init_textures(coverflow);
 
         /* Display lists */
         glNewList (LIST_SQUARE, GL_COMPILE);
-            glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, white);
             draw_square ();
         glEndList ();
 
@@ -434,8 +418,43 @@ draw_albums (void)
         width = gdk_pixbuf_get_width (pixbuf);
         height = gdk_pixbuf_get_height (pixbuf);
 
-        glBindTexture (GL_TEXTURE_2D, texture1);
+/*        glBindTexture (GL_TEXTURE_2D, texture1);
         glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, 
                       GL_UNSIGNED_BYTE, (GLvoid *) pixels); 
         glCallList (LIST_SQUARE);
+*/
+}
+
+static void
+gl_init_lights(void)
+{
+        static GLfloat light_pos[] = { 0.0, 0.0, 3.0, 0.0 };
+        static GLfloat light_diffuse[] = { 1.0, 1.0, 1.0, 1.0 };
+        static GLfloat light_specular[] = { 1.0, 1.0, 1.0, 1.0 };
+
+        glLightfv (GL_LIGHT0, GL_POSITION, light_pos);
+        glLightfv (GL_LIGHT0, GL_DIFFUSE, light_diffuse);
+        glLightfv (GL_LIGHT0, GL_SPECULAR, light_specular);
+
+        glEnable (GL_LIGHTING);
+        glEnable (GL_LIGHT0);
+        glEnable (GL_DEPTH_TEST);
+}
+
+static void
+gl_init_textures(ArioCoverflow *coverflow)
+{
+        int i;
+        glEnable (GL_TEXTURE_2D);
+
+        glGenTextures(N_COVERS, coverflow->priv->textures);
+        for (i = 0; i < N_COVERS; i++) {
+                glBindTexture(GL_TEXTURE_2D, coverflow->priv->textures[i]);
+                glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+                glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+        }
 }
