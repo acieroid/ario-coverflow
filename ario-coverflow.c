@@ -43,6 +43,8 @@
 #define LIST_SQUARE 1
 #define N_COVERS 7
 
+static double angle = 20.0;
+
 static void ario_coverflow_finalize (GObject *object);
 static void ario_coverflow_set_property (GObject *object,
                                            guint prop_id,
@@ -53,6 +55,7 @@ static void ario_coverflow_get_property (GObject *object,
                                            GValue *value,
                                            GParamSpec *pspec);
 
+
 static void realize (GtkWidget *widget, gpointer data);
 static gboolean expose_event (GtkWidget *widget,
                               GdkEventExpose *event,
@@ -60,7 +63,9 @@ static gboolean expose_event (GtkWidget *widget,
 static gboolean configure_event (GtkWidget *widget,
                                  GdkEvent *event,
                                  gpointer data);
+static gboolean idle (gpointer data);
 
+static gboolean draw (ArioCoverflow *coverflow);
 static void draw_square (void);
 static void draw_albums (void);
 
@@ -81,6 +86,7 @@ struct ArioCoverflowPrivate
 
         GList *album;
         GLuint textures[N_COVERS];
+        GLfloat window_ratio;
 
         gboolean gl_initialized;
 };
@@ -173,6 +179,7 @@ ario_coverflow_init (ArioCoverflow *coverflow)
         /* Initialize opengl or display an error */
         ARIO_LOG_DBG("Initializing OpenGL");
         coverflow->priv->gl_initialized = FALSE; /* not initialized by default */
+        coverflow->priv->window_ratio = 0;
         if (!gtk_gl_init_check(NULL, NULL))  {
                 coverflow->priv->error_label = gtk_label_new ("Can't initialize OpenGL");
                 gtk_scrolled_window_add_with_viewport (GTK_SCROLLED_WINDOW (scrolledwindow), 
@@ -220,6 +227,7 @@ ario_coverflow_init (ArioCoverflow *coverflow)
                 g_signal_connect (G_OBJECT (coverflow->priv->drawing_area),
                                   "configure_event", G_CALLBACK (configure_event),
                                   coverflow);
+                gtk_idle_add (idle, coverflow);
 
                 gtk_scrolled_window_add_with_viewport (GTK_SCROLLED_WINDOW (scrolledwindow),
                                                        coverflow->priv->drawing_area);
@@ -309,7 +317,6 @@ static void
 realize (GtkWidget *widget, gpointer data)
 {
         ArioCoverflow *coverflow = (ArioCoverflow *) data;
-
         GdkGLContext *glcontext = gtk_widget_get_gl_context (widget);
         GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable (widget);
 
@@ -335,8 +342,52 @@ expose_event (GtkWidget *widget,
               GdkEventExpose *event,
               gpointer data)
 {
+        ARIO_LOG_DBG ("Exposing");
+        ArioCoverflow *coverflow = (ArioCoverflow *) data;
+        return draw (coverflow);
+}
+
+static gboolean
+configure_event (GtkWidget *widget,
+                 GdkEvent *event,
+                 gpointer data)
+{
+        ARIO_LOG_DBG ("Configuring");
+        ArioCoverflow *coverflow = (ArioCoverflow *) data;
         GdkGLContext *glcontext = gtk_widget_get_gl_context (widget);
         GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable (widget);
+        GtkAllocation allocation;
+
+        if (!gdk_gl_drawable_gl_begin (gldrawable, glcontext))
+                return FALSE;
+
+        gtk_widget_get_allocation (widget, &allocation);
+        glViewport(allocation.x, allocation.y, allocation.width, allocation.height);
+        coverflow->priv->window_ratio = ((float) allocation.width)/((float) allocation.height);
+        ARIO_LOG_DBG ("Ratio: %f", coverflow->priv->window_ratio);
+
+        gdk_gl_drawable_gl_end (gldrawable);
+        return TRUE;
+}
+
+static gboolean
+idle (gpointer data)
+{
+        ArioCoverflow *coverflow = (ArioCoverflow *) data;
+
+        angle+=0.5;
+        if (angle > 360) angle = 0;
+
+        ARIO_LOG_DBG ("Idling");
+        return draw (coverflow);
+}
+
+static gboolean
+draw (ArioCoverflow *coverflow)
+{
+        ARIO_LOG_DBG ("Drawing");
+        GdkGLContext *glcontext = gtk_widget_get_gl_context (coverflow->priv->drawing_area);
+        GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable (coverflow->priv->drawing_area);
 
         if (!gdk_gl_drawable_gl_begin (gldrawable, glcontext))
                 return FALSE;
@@ -346,6 +397,15 @@ expose_event (GtkWidget *widget,
         glLoadIdentity();
 
         /* Draw */
+        glLoadIdentity();
+        ARIO_LOG_DBG ("Drawing");
+        if (coverflow->priv->window_ratio > 1)
+                /* width greater, shrink it */
+                glScalef (1.0/coverflow->priv->window_ratio, 1, 1);
+        else
+                /* height greater */
+                glScalef (1, 1.0/coverflow->priv->window_ratio, 1);
+
         draw_albums();
     
         /* Swap buffers */
@@ -357,26 +417,6 @@ expose_event (GtkWidget *widget,
         gdk_gl_drawable_gl_end (gldrawable);
         return TRUE;
 }
-
-static gboolean
-configure_event (GtkWidget *widget,
-                 GdkEvent *event,
-                 gpointer data)
-{
-        GdkGLContext *glcontext = gtk_widget_get_gl_context (widget);
-        GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable (widget);
-        GtkAllocation allocation;
-
-        if (!gdk_gl_drawable_gl_begin (gldrawable, glcontext))
-                return FALSE;
-
-        gtk_widget_get_allocation (widget, &allocation);  
-        glViewport(allocation.x, allocation.y, allocation.width, allocation.height);
-
-        gdk_gl_drawable_gl_end (gldrawable);
-        return TRUE;
-}
-
 
 static void
 draw_square (void)
@@ -408,25 +448,14 @@ draw_square (void)
 static void
 draw_albums (void)
 {
-        guchar *pixels;
-        GdkPixbuf *pixbuf;
-        GLsizei width, height;
-
-        pixbuf = ario_cover_handler_get_large_cover ();
-        if (pixbuf == NULL) {
-                ARIO_LOG_DBG ("No cover");
-                return;
-        }
-
-        pixels = gdk_pixbuf_get_pixels (pixbuf);
-        width = gdk_pixbuf_get_width (pixbuf);
-        height = gdk_pixbuf_get_height (pixbuf);
-
 /*        glBindTexture (GL_TEXTURE_2D, texture1);
         glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, 
                       GL_UNSIGNED_BYTE, (GLvoid *) pixels); 
-        glCallList (LIST_SQUARE);
 */
+        glCallList (LIST_SQUARE);
+        glTranslatef (-0.2, 0, 0);
+        glRotatef (angle, 0, 1, 0);
+        glCallList (LIST_SQUARE);
 }
 
 static void
@@ -439,7 +468,6 @@ allocate_textures (ArioCoverflow *coverflow)
         glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[N_COVERS/2]);
         load_texture(coverflow->priv->album->data);
 
-        /* Left side */
         texture_left = N_COVERS/2-1;
         texture_right = N_COVERS/2+1;
         right = left = coverflow->priv->album;
@@ -504,7 +532,7 @@ static void
 gl_init_textures(ArioCoverflow *coverflow)
 {
         int i;
-        glEnable (GL_TEXTURE_2D);
+        /*glEnable (GL_TEXTURE_2D);*/
 
         glGenTextures(N_COVERS, coverflow->priv->textures);
         for (i = 0; i < N_COVERS; i++) {
