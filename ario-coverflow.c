@@ -459,6 +459,7 @@ draw_albums (ArioCoverflow *coverflow)
                 glRotatef (40, 0, 1, 0);
                 glCallList (LIST_SQUARE);
                 glPopMatrix ();
+                texture_left--;
 
                 glPushMatrix();
                 glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[texture_right]);
@@ -466,6 +467,7 @@ draw_albums (ArioCoverflow *coverflow)
                 glRotatef (-40, 0, 1, 0);
                 glCallList (LIST_SQUARE);
                 glPopMatrix ();
+                texture_right++;
         }
 }
 
