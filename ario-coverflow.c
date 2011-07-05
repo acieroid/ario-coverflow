@@ -26,8 +26,10 @@
 
 #ifdef GDK_WINDOWING_QUARTZ
 #include <OpenGL/gl.h>
+#include <OpenGL/glu.h>
 #else
 #include <GL/gl.h>
+#include <GL/glu.h>
 #endif
 
 #include "ario-debug.h"
@@ -325,8 +327,6 @@ realize (GtkWidget *widget, gpointer data)
 
         glClearColor (0.1, 0.1, 0.1, 1.0);
         glClearDepth (1.0);
-        glMatrixMode (GL_PROJECTION);
-        glLoadIdentity();
 
         gl_init_lights();
         gl_init_textures(coverflow);
@@ -378,7 +378,7 @@ idle (gpointer data)
 {
         ArioCoverflow *coverflow = (ArioCoverflow *) data;
 
-        angle+=0.5;
+        angle+=0.1;
         if (angle > 360) angle = 0;
 
         ARIO_LOG_DBG ("Idling");
@@ -400,7 +400,10 @@ draw (ArioCoverflow *coverflow)
         glLoadIdentity ();
 
         /* Draw */
+        glMatrixMode (GL_MODELVIEW);
         glLoadIdentity();
+        //gluLookAt(0, -0.5, 0, 0, 0,-1, 0, 1, 0);
+
         ARIO_LOG_DBG ("Drawing");
         if (coverflow->priv->window_ratio > 1)
                 /* width greater, shrink it */
@@ -458,16 +461,18 @@ draw_albums (ArioCoverflow *coverflow)
         for (i = 0; i < N_COVERS/2; i++) {
                 glPushMatrix();
                 glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[texture_left]);
-                glTranslatef (-1.5*i, 0, 0);
+                glTranslatef (-1.5*(i+1), 0, 0);
                 glRotatef (angle, 0, 1, 0);
+                glTranslatef (0, 0, -0.9);
                 glCallList (LIST_SQUARE);
                 glPopMatrix ();
                 texture_left--;
 
                 glPushMatrix();
                 glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[texture_right]);
-                glTranslatef (1.5*i, 0, 0);
+                glTranslatef (1.5*(i+1), 0, 0);
                 glRotatef (-angle, 0, 1, 0);
+                glTranslatef (0, 0, -0.9);
                 glCallList (LIST_SQUARE);
                 glPopMatrix ();
                 texture_right++;
