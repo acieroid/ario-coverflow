@@ -414,6 +414,7 @@ button_press_event (GtkWidget *widget,
 {
         ARIO_LOG_DBG ("Button press");
         ArioCoverflow *coverflow = (ArioCoverflow *) data;
+        return TRUE;
 }
 
 static gboolean
@@ -447,7 +448,6 @@ draw (ArioCoverflow *coverflow)
         glLoadIdentity();
         //gluLookAt(0, -0.5, 0, 0, 0,-1, 0, 1, 0);
 
-        ARIO_LOG_DBG ("Drawing");
         if (coverflow->priv->window_ratio > 1)
                 /* width greater, shrink it */
                 glScalef (1.0/coverflow->priv->window_ratio, 1, 1);
@@ -562,18 +562,23 @@ load_texture (ArioServerAlbum *album)
         ARIO_LOG_DBG ("Loading texture for: %s - %s", album->artist, album->album);
         cover_path = ario_cover_make_cover_path (album->artist, album->album, NORMAL_COVER);
         pixbuf = gdk_pixbuf_new_from_file (cover_path, NULL);
-        if (pixbuf == NULL) return; /* TODO: allocate a "blank" cover */
+        if (pixbuf != NULL) {
+                pixels = gdk_pixbuf_get_pixels (pixbuf);
+                width = gdk_pixbuf_get_width (pixbuf);
+                height = gdk_pixbuf_get_height (pixbuf);
+                ARIO_LOG_DBG ("Size: %d - %d", width, height);
 
-        pixels = gdk_pixbuf_get_pixels (pixbuf);
-        width = gdk_pixbuf_get_width (pixbuf);
-        height = gdk_pixbuf_get_height (pixbuf);
-        ARIO_LOG_DBG ("Size: %d - %d", width, height);
-
-        glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, 
-                      GL_UNSIGNED_BYTE, (GLvoid *) pixels); 
+                glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, 
+                              GL_UNSIGNED_BYTE, (GLvoid *) pixels); 
+                g_free (pixels);
+        }
+        else {
+                ARIO_LOG_DBG ("No cover !");
+                glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, 0, 0, 0,
+                              GL_RGB, GL_UNSIGNED_BYTE, NULL);
+        }
 
         g_free (cover_path);
-        g_free (pixels);
         /*g_object_unref (pixbuf);*/
 }
 
