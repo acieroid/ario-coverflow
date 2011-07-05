@@ -325,6 +325,9 @@ realize (GtkWidget *widget, gpointer data)
 
         glClearColor (0.1, 0.1, 0.1, 1.0);
         glClearDepth (1.0);
+        glMatrixMode (GL_PROJECTION);
+        glLoadIdentity();
+
         gl_init_lights();
         gl_init_textures(coverflow);
         allocate_textures(coverflow);
@@ -394,7 +397,7 @@ draw (ArioCoverflow *coverflow)
 
         /* Clear */
         glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glLoadIdentity();
+        glLoadIdentity ();
 
         /* Draw */
         glLoadIdentity();
@@ -429,10 +432,10 @@ draw_square (void)
             {  0.9, -0.9 },
         };
         static GLfloat texture[4][2] = {
-            { 1, 0 },
             { 0, 0 },
-            { 0, 1 },
+            { 1, 0 },
             { 1, 1 },
+            { 0, 1 },
         };
         static GLfloat normal[3] = { 0.0, 0.0, 1.0 };
 
@@ -456,7 +459,7 @@ draw_albums (ArioCoverflow *coverflow)
                 glPushMatrix();
                 glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[texture_left]);
                 glTranslatef (-1.5*i, 0, 0);
-                glRotatef (40, 0, 1, 0);
+                glRotatef (angle, 0, 1, 0);
                 glCallList (LIST_SQUARE);
                 glPopMatrix ();
                 texture_left--;
@@ -464,7 +467,7 @@ draw_albums (ArioCoverflow *coverflow)
                 glPushMatrix();
                 glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[texture_right]);
                 glTranslatef (1.5*i, 0, 0);
-                glRotatef (-40, 0, 1, 0);
+                glRotatef (-angle, 0, 1, 0);
                 glCallList (LIST_SQUARE);
                 glPopMatrix ();
                 texture_right++;
@@ -516,6 +519,7 @@ load_texture (ArioServerAlbum *album)
         pixels = gdk_pixbuf_get_pixels (pixbuf);
         width = gdk_pixbuf_get_width (pixbuf);
         height = gdk_pixbuf_get_height (pixbuf);
+        ARIO_LOG_DBG ("Size: %d - %d", width, height);
 
         glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, 
                       GL_UNSIGNED_BYTE, (GLvoid *) pixels); 
@@ -550,7 +554,6 @@ gl_init_textures(ArioCoverflow *coverflow)
         glGenTextures(N_COVERS, coverflow->priv->textures);
         for (i = 0; i < N_COVERS; i++) {
                 glBindTexture(GL_TEXTURE_2D, coverflow->priv->textures[i]);
-                glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
                 glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
                 glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
