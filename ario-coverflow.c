@@ -65,6 +65,12 @@ static gboolean expose_event (GtkWidget *widget,
 static gboolean configure_event (GtkWidget *widget,
                                  GdkEvent *event,
                                  gpointer data);
+static gboolean button_press_event (GtkWidget *widget,
+                                    GdkEventButton *event,
+                                    gpointer data);
+static gboolean scroll_event (GtkWidget *widget,
+                              GdkEventScroll *event,
+                              gpointer data);
 static gboolean idle (gpointer data);
 
 static gboolean draw (ArioCoverflow *coverflow);
@@ -219,6 +225,7 @@ ario_coverflow_init (ArioCoverflow *coverflow)
                                               GDK_GL_RGBA_TYPE);
                 gtk_widget_add_events (coverflow->priv->drawing_area,
                                        GDK_BUTTON_PRESS_MASK |
+                                       GDK_SCROLL_MASK |
                                        GDK_VISIBILITY_NOTIFY_MASK);
 
                 g_signal_connect_after (G_OBJECT (coverflow->priv->drawing_area),
@@ -228,6 +235,12 @@ ario_coverflow_init (ArioCoverflow *coverflow)
                                   coverflow);
                 g_signal_connect (G_OBJECT (coverflow->priv->drawing_area),
                                   "configure_event", G_CALLBACK (configure_event),
+                                  coverflow);
+                g_signal_connect (G_OBJECT (coverflow->priv->drawing_area),
+                                  "button-press-event", G_CALLBACK (button_press_event),
+                                  coverflow);
+                g_signal_connect (G_OBJECT (coverflow->priv->drawing_area),
+                                  "scroll-event", G_CALLBACK (scroll_event),
                                   coverflow);
                 gtk_idle_add (idle, coverflow);
 
@@ -371,6 +384,36 @@ configure_event (GtkWidget *widget,
 
         gdk_gl_drawable_gl_end (gldrawable);
         return TRUE;
+}
+
+static gboolean
+scroll_event (GtkWidget *widget,
+              GdkEventScroll *event,
+              gpointer data)
+{
+        ARIO_LOG_DBG ("Scroll");
+        ArioCoverflow *coverflow = (ArioCoverflow *) data;
+
+        if (event->direction == GDK_SCROLL_UP) {
+                if (g_list_next (coverflow->priv->album))
+                        coverflow->priv->album = g_list_next (coverflow->priv->album);
+        }
+        else if (event->direction == GDK_SCROLL_DOWN) {
+                if (g_list_previous (coverflow->priv->album))
+                        coverflow->priv->album = g_list_previous (coverflow->priv->album);
+        }
+
+        allocate_textures (coverflow);
+        return FALSE;
+}
+
+static gboolean
+button_press_event (GtkWidget *widget,
+                    GdkEventButton *event,
+                    gpointer data)
+{
+        ARIO_LOG_DBG ("Button press");
+        ArioCoverflow *coverflow = (ArioCoverflow *) data;
 }
 
 static gboolean
