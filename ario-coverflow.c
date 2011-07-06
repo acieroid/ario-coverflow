@@ -45,6 +45,10 @@
 #define LIST_SQUARE 1
 #define N_COVERS 7
 #define ANGLE 45
+#define SCALE_FACTOR 1.3
+#define SHIFT_GREAT_COVER 0.3
+#define SHIFT_COVERS 0.7
+#define SHIFT_BETWEEN_COVERS 0.3
 
 static double angle = 20.0;
 static double pos = 0.0;
@@ -485,7 +489,7 @@ draw (ArioCoverflow *coverflow)
         /* Draw */
         glMatrixMode (GL_MODELVIEW);
         glLoadIdentity();
-        gluLookAt(1,0,1,0,0,0,0,1,0);
+        gluLookAt(0,0,2,0,0,0,0,1,0);
 
         draw_albums(coverflow);
 
@@ -532,9 +536,8 @@ draw_albums (ArioCoverflow *coverflow)
         int i, texture_left, texture_right;
         glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[N_COVERS/2]);
         glPushMatrix ();
-        //glScalef (1.3, 1.3, 1.3);
-        //glTranslatef (0, 0, 0);
-        glRotatef (angle, 0, 1, 0);
+        glScalef (SCALE_FACTOR, SCALE_FACTOR, SCALE_FACTOR);
+        glTranslatef (0, 0, SHIFT_GREAT_COVER);
         glCallList (LIST_SQUARE);
         glPopMatrix ();
 
@@ -543,18 +546,16 @@ draw_albums (ArioCoverflow *coverflow)
         for (i = 0; i < N_COVERS/2; i++) {
                 glPushMatrix();
                   glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[texture_left]);
-                  //glTranslatef (-(1.0*i/3)-1.8, 0, 0);
-                  //glRotatef (-ANGLE, 0, 1, 0);
-                  //glTranslatef (0, 0, 0.9);
-                  //glCallList (LIST_SQUARE);
+                  glTranslatef (-SHIFT_BETWEEN_COVERS*i-SHIFT_COVERS, 0, 0);
+                  glRotatef (ANGLE, 0, 1, 0);
+                  glCallList (LIST_SQUARE);
                 glPopMatrix ();
                 texture_left--;
 
                 glPushMatrix();
                   glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[texture_right]);
-                  //glTranslatef ((-1.0*i/3.0)+1.8, 0, 0);
-                  glRotatef (ANGLE, 0, 1, 0);
-                  //glTranslatef (0, 0, 0.9);
+                  glTranslatef (SHIFT_BETWEEN_COVERS*i+SHIFT_COVERS, 0, 0);
+                  glRotatef (-ANGLE, 0, 1, 0);
                   glCallList (LIST_SQUARE);
                 glPopMatrix ();
                 texture_right++;
