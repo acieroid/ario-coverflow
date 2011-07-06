@@ -188,7 +188,12 @@ ario_coverflow_init (ArioCoverflow *coverflow)
         ARIO_LOG_DBG("Initializing OpenGL");
         coverflow->priv->gl_initialized = FALSE; /* not initialized by default */
         coverflow->priv->window_ratio = 0;
-        if (!gtk_gl_init_check(NULL, NULL))  {
+        if (coverflow->priv->connected == FALSE) {
+                coverflow->priv->error_label = gtk_label_new ("Ario not connected");
+                gtk_scrolled_window_add_with_viewport (GTK_SCROLLED_WINDOW (scrolledwindow), 
+                                                       coverflow->priv->error_label);
+        }
+        else if (!gtk_gl_init_check(NULL, NULL))  {
                 coverflow->priv->error_label = gtk_label_new ("Can't initialize OpenGL");
                 gtk_scrolled_window_add_with_viewport (GTK_SCROLLED_WINDOW (scrolledwindow), 
                                                        coverflow->priv->error_label);
@@ -248,7 +253,7 @@ ario_coverflow_init (ArioCoverflow *coverflow)
                                                        coverflow->priv->drawing_area);
 
                 /* Get the album list */
-                coverflow->priv->album = ario_server_get_albums(NULL)->next->next->next->next;
+                coverflow->priv->album = ario_server_get_albums(NULL);
         }
 
         gtk_widget_show_all (scrolledwindow);
