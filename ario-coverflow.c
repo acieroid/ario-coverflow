@@ -531,7 +531,9 @@ static void
 draw_albums (ArioCoverflow *coverflow)
 {
         int i, texture_left, texture_right;
+        glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[N_COVERS/2]);
         glCallList (LIST_SQUARE);
+
         texture_left = N_COVERS/2-1;
         texture_right = N_COVERS/2+1;
         for (i = 0; i < N_COVERS/2; i++) {
