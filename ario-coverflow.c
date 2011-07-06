@@ -44,7 +44,7 @@
 
 #define LIST_SQUARE 1
 #define N_COVERS 7
-#define ANGLE 70
+#define ANGLE 45
 
 static double angle = 20.0;
 static double pos = 0.0;
@@ -96,7 +96,6 @@ struct ArioCoverflowPrivate
 
         GList *album;
         GLuint textures[N_COVERS];
-        GLfloat window_ratio;
 
         gboolean gl_initialized;
 };
@@ -190,7 +189,6 @@ ario_coverflow_init (ArioCoverflow *coverflow)
         ARIO_LOG_DBG("Initializing OpenGL");
         coverflow->priv->connected = ario_server_is_connected ();
         coverflow->priv->gl_initialized = FALSE; /* not initialized by default */
-        coverflow->priv->window_ratio = 0;
         if (coverflow->priv->connected == FALSE) {
                 coverflow->priv->error_label = gtk_label_new ("Ario not connected");
                 gtk_scrolled_window_add_with_viewport (GTK_SCROLLED_WINDOW (scrolledwindow),
@@ -376,7 +374,6 @@ configure_event (GtkWidget *widget,
                  gpointer data)
 {
         ARIO_LOG_DBG ("Configuring");
-        ArioCoverflow *coverflow = (ArioCoverflow *) data;
         GdkGLContext *glcontext = gtk_widget_get_gl_context (widget);
         GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable (widget);
         GtkAllocation allocation;
@@ -386,8 +383,10 @@ configure_event (GtkWidget *widget,
 
         gtk_widget_get_allocation (widget, &allocation);
         glViewport(allocation.x, allocation.y, allocation.width, allocation.height);
-        coverflow->priv->window_ratio = ((float) allocation.width)/((float) allocation.height);
-        ARIO_LOG_DBG ("Ratio: %f", coverflow->priv->window_ratio);
+
+        glMatrixMode (GL_PROJECTION);
+        glLoadIdentity();
+        gluPerspective(70,((float) allocation.width)/((float) allocation.height), 1, 1000);
 
         gdk_gl_drawable_gl_end (gldrawable);
         return TRUE;
@@ -448,8 +447,10 @@ button_press_event (GtkWidget *widget,
                 g_slist_free (criteria);
                 g_slist_free (criterias);
         }
-        else if (event->button == 1 && event->type == GDK_BUTTON_PRESS)
+        else if (event->button == 1 && event->type == GDK_BUTTON_PRESS) {
           pos+=0.1;
+          fprintf (stderr, "%f\n", angle);
+        }
         else if (event->button == 3 && event->type == GDK_BUTTON_PRESS)
           pos-=0.1;
 
@@ -462,7 +463,7 @@ idle (gpointer data)
         ArioCoverflow *coverflow = (ArioCoverflow *) data;
 
         angle+=0.1;
-        if (angle > 360) angle = 0;
+        if (angle > 180) angle = -180;
 
         ARIO_LOG_DBG ("Idling");
         return draw (coverflow);
@@ -480,19 +481,11 @@ draw (ArioCoverflow *coverflow)
 
         /* Clear */
         glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glLoadIdentity ();
 
         /* Draw */
         glMatrixMode (GL_MODELVIEW);
         glLoadIdentity();
-        gluLookAt(0, 0.2, -0.3, 0, 0,-1, 0, 1, 0);
-
-        if (coverflow->priv->window_ratio > 1)
-                /* width greater, shrink it */
-                glScalef (1.0/coverflow->priv->window_ratio, 1, 1);
-        else
-                /* height greater */
-                glScalef (1, 1.0/coverflow->priv->window_ratio, 1);
+        gluLookAt(1,0,1,0,0,0,0,1,0);
 
         draw_albums(coverflow);
 
@@ -539,8 +532,9 @@ draw_albums (ArioCoverflow *coverflow)
         int i, texture_left, texture_right;
         glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[N_COVERS/2]);
         glPushMatrix ();
-        glTranslatef (0, 0, -0.5);
-        glScalef (1.3, 1.3, 1.3);
+        //glScalef (1.3, 1.3, 1.3);
+        //glTranslatef (0, 0, 0);
+        glRotatef (angle, 0, 1, 0);
         glCallList (LIST_SQUARE);
         glPopMatrix ();
 
@@ -549,18 +543,18 @@ draw_albums (ArioCoverflow *coverflow)
         for (i = 0; i < N_COVERS/2; i++) {
                 glPushMatrix();
                   glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[texture_left]);
-                  glTranslatef (-(2.0*i/3)-1.8, 0, 0);
-                  glRotatef (-ANGLE, 0, 1, 0);
-                  glTranslatef (0, 0, -0.9);
-                  glCallList (LIST_SQUARE);
+                  //glTranslatef (-(1.0*i/3)-1.8, 0, 0);
+                  //glRotatef (-ANGLE, 0, 1, 0);
+                  //glTranslatef (0, 0, 0.9);
+                  //glCallList (LIST_SQUARE);
                 glPopMatrix ();
                 texture_left--;
 
                 glPushMatrix();
                   glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[texture_right]);
-                  glTranslatef (i/2.0+1.8, 0, 0);
+                  //glTranslatef ((-1.0*i/3.0)+1.8, 0, 0);
                   glRotatef (ANGLE, 0, 1, 0);
-                  glTranslatef (0, 0, -0.9);
+                  //glTranslatef (0, 0, 0.9);
                   glCallList (LIST_SQUARE);
                 glPopMatrix ();
                 texture_right++;
