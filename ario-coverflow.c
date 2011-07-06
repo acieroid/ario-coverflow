@@ -186,6 +186,7 @@ ario_coverflow_init (ArioCoverflow *coverflow)
 
         /* Initialize opengl or display an error */
         ARIO_LOG_DBG("Initializing OpenGL");
+        coverflow->priv->connected = ario_server_is_connected ();
         coverflow->priv->gl_initialized = FALSE; /* not initialized by default */
         coverflow->priv->window_ratio = 0;
         if (coverflow->priv->connected == FALSE) {
@@ -328,7 +329,6 @@ ario_coverflow_new (GtkUIManager *mgr)
 
         g_return_val_if_fail (coverflow->priv != NULL, NULL);
 
-        coverflow->priv->connected = ario_server_is_connected ();
 
         return GTK_WIDGET (coverflow);
 }
