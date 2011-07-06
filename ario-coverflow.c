@@ -419,6 +419,34 @@ button_press_event (GtkWidget *widget,
 {
         ARIO_LOG_DBG ("Button press");
         ArioCoverflow *coverflow = (ArioCoverflow *) data;
+        ArioServerAtomicCriteria atomic_criteria1;
+        ArioServerAtomicCriteria atomic_criteria2;
+        ArioServerCriteria *criteria = NULL;
+        ArioServerAlbum *album = NULL;
+        GSList *criterias = NULL;
+
+        if (coverflow->priv->album != NULL &&
+            event->button == 1 && event->type == GDK_2BUTTON_PRESS) {
+                album = (ArioServerAlbum *) coverflow->priv->album->data;
+                atomic_criteria1.tag = ARIO_TAG_ARTIST;
+                atomic_criteria1.value = album->artist;
+                atomic_criteria2.tag = ARIO_TAG_ALBUM;
+                atomic_criteria2.value = album->album;
+
+                criteria = g_slist_append (criteria, &atomic_criteria1);
+                criteria = g_slist_append (criteria, &atomic_criteria2);
+
+                criterias = g_slist_append (criterias, criteria);
+
+                /* Add album to playlist */
+                ario_server_playlist_append_criterias (criterias,
+                                                       ario_conf_get_integer (PREF_DOUBLECLICK_BEHAVIOR, PREF_DOUBLECLICK_BEHAVIOR_DEFAULT),
+                                                       -1);
+
+                g_slist_free (criteria);
+                g_slist_free (criterias);
+        }   
+
         return TRUE;
 }
 
