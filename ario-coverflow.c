@@ -534,6 +534,8 @@ static void
 draw_albums (ArioCoverflow *coverflow)
 {
         int i, texture_left, texture_right;
+        GList *left, *right;
+
         glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[N_COVERS/2]);
         glPushMatrix ();
         glScalef (SCALE_FACTOR, SCALE_FACTOR, SCALE_FACTOR);
@@ -543,22 +545,29 @@ draw_albums (ArioCoverflow *coverflow)
 
         texture_left = N_COVERS/2-1;
         texture_right = N_COVERS/2+1;
+        right = left = coverflow->priv->album;
         for (i = 0; i < N_COVERS/2; i++) {
-                glPushMatrix();
-                  glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[texture_left]);
-                  glTranslatef (-SHIFT_BETWEEN_COVERS*i-SHIFT_COVERS, 0, 0);
-                  glRotatef (ANGLE, 0, 1, 0);
-                  glCallList (LIST_SQUARE);
-                glPopMatrix ();
-                texture_left--;
+                if (g_list_previous (left)) {
+                        left = g_list_previous (left);
+                        glPushMatrix();
+                          glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[texture_left]);
+                          glTranslatef (-SHIFT_BETWEEN_COVERS*i-SHIFT_COVERS, 0, 0);
+                          glRotatef (ANGLE, 0, 1, 0);
+                          glCallList (LIST_SQUARE);
+                        glPopMatrix ();
+                        texture_left--;
+                }
 
-                glPushMatrix();
-                  glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[texture_right]);
-                  glTranslatef (SHIFT_BETWEEN_COVERS*i+SHIFT_COVERS, 0, 0);
-                  glRotatef (-ANGLE, 0, 1, 0);
-                  glCallList (LIST_SQUARE);
-                glPopMatrix ();
-                texture_right++;
+                if (g_list_next (right)) {
+                        right = g_list_next (right);
+                        glPushMatrix();
+                          glBindTexture (GL_TEXTURE_2D, coverflow->priv->textures[texture_right]);
+                          glTranslatef (SHIFT_BETWEEN_COVERS*i+SHIFT_COVERS, 0, 0);
+                          glRotatef (-ANGLE, 0, 1, 0);
+                          glCallList (LIST_SQUARE);
+                        glPopMatrix ();
+                        texture_right++;
+                }
         }
 }
 
