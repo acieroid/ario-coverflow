@@ -390,7 +390,7 @@ configure_event (GtkWidget *widget,
 
         glMatrixMode (GL_PROJECTION);
         glLoadIdentity();
-        gluPerspective(70,((float) allocation.width)/((float) allocation.height), 1, 1000);
+        gluPerspective(60,((float) allocation.width)/((float) allocation.height), 1, 1000);
 
         gdk_gl_drawable_gl_end (gldrawable);
         return TRUE;
@@ -624,7 +624,7 @@ load_texture (ArioServerAlbum *album)
 static void
 gl_init_lights(void)
 {
-        static GLfloat light_pos[] = { 0.0, 0.0, 3.0, 0.0 };
+        static GLfloat light_pos[] = { 0.0, 1.0, 1.0, 0.0 };
         static GLfloat light_diffuse[] = { 1.0, 1.0, 1.0, 1.0 };
         static GLfloat light_specular[] = { 1.0, 1.0, 1.0, 1.0 };
 
@@ -632,7 +632,7 @@ gl_init_lights(void)
         glLightfv (GL_LIGHT0, GL_DIFFUSE, light_diffuse);
         glLightfv (GL_LIGHT0, GL_SPECULAR, light_specular);
 
-        glEnable (GL_LIGHTING);
+        //glEnable (GL_LIGHTING);
         glEnable (GL_LIGHT0);
         glEnable (GL_DEPTH_TEST);
 }
