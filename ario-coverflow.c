@@ -18,19 +18,13 @@
  */
 
 #include "ario-coverflow.h"
+#include <GL/glew.h>
+#include <GL/glut.h>
 #include <gtk/gtk.h>
 #include <gtk/gtkgl.h>
 #include <string.h>
 #include <config.h>
 #include <glib/gi18n.h>
-
-#ifdef GDK_WINDOWING_QUARTZ
-#include <OpenGL/gl.h>
-#include <OpenGL/glu.h>
-#else
-#include <GL/gl.h>
-#include <GL/glu.h>
-#endif
 
 #include "ario-debug.h"
 #include "ario-util.h"
@@ -49,6 +43,8 @@
 #define SHIFT_GREAT_COVER 0.3
 #define SHIFT_COVERS 0.7
 #define SHIFT_BETWEEN_COVERS 0.3
+#define INVALID_SHADER 0 /* should absolutely be 0 */
+#define INVALID_PROGRAM 0 /* should absolutely be 0 */
 
 static double angle = 20.0;
 static double pos = 0.0;
@@ -88,6 +84,8 @@ static void load_texture (ArioServerAlbum *album);
 
 static void gl_init_lights(void);
 static void gl_init_textures(ArioCoverflow *coverflow);
+static void gl_init_shaders (ArioCoverflow *coverflow);
+static GLuint load_shader (GLenum shader_type, gchar *filename);
 
 struct ArioCoverflowPrivate
 {
@@ -100,8 +98,10 @@ struct ArioCoverflowPrivate
 
         GList *album;
         GLuint textures[N_COVERS];
+        GLuint program;
+        GLuint vshader, fshader;
 
-        gboolean gl_initialized;
+        gboolean gl_initialized, shader_initialized;
 };
 
 /* Object properties */
@@ -181,6 +181,8 @@ ario_coverflow_init (ArioCoverflow *coverflow)
         ARIO_LOG_FUNCTION_START;
         GtkWidget *scrolledwindow;
         GdkGLConfig *glconfig = NULL;
+        int dummy_argc = 1;
+        char *dummy_argv[1] = {"coverflow"};
 
         coverflow->priv = ARIO_COVERFLOW_GET_PRIVATE (coverflow);
 
@@ -228,6 +230,7 @@ ario_coverflow_init (ArioCoverflow *coverflow)
         /* If we have initialized GL, we can create the drawing area */
         if (coverflow->priv->gl_initialized) {
                 ARIO_LOG_DBG ("OpenGL initialized");
+                glutInit (&dummy_argc, dummy_argv); /* TODO: check if initialized */
                 coverflow->priv->drawing_area = gtk_drawing_area_new();
 
                 gtk_widget_set_gl_capability (coverflow->priv->drawing_area,
@@ -340,6 +343,7 @@ ario_coverflow_new (GtkUIManager *mgr)
 static void
 realize (GtkWidget *widget, gpointer data)
 {
+        GLenum glew_code;
         ArioCoverflow *coverflow = (ArioCoverflow *) data;
         GdkGLContext *glcontext = gtk_widget_get_gl_context (widget);
         GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable (widget);
@@ -350,9 +354,17 @@ realize (GtkWidget *widget, gpointer data)
         glClearColor (0.1, 0.1, 0.1, 1.0);
         glClearDepth (1.0);
 
-        gl_init_lights();
-        gl_init_textures(coverflow);
-        allocate_textures(coverflow);
+        
+        glew_code = glewInit();
+        if (glew_code != GLEW_OK) {
+                ARIO_LOG_DBG ("Can't init GLEW, shaders deactivated");
+                coverflow->priv->shader_initialized = FALSE;
+        }
+      
+        gl_init_lights ();
+        gl_init_textures (coverflow);
+        gl_init_shaders (coverflow);
+        allocate_textures (coverflow);
 
         /* Display lists */
         glNewList (LIST_SQUARE, GL_COMPILE);
@@ -647,7 +659,7 @@ gl_init_lights(void)
 }
 
 static void
-gl_init_textures(ArioCoverflow *coverflow)
+gl_init_textures (ArioCoverflow *coverflow)
 {
         int i;
         glEnable (GL_TEXTURE_2D);
@@ -661,4 +673,55 @@ gl_init_textures(ArioCoverflow *coverflow)
                 glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                 glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
         }
+}
+
+static void
+gl_init_shaders (ArioCoverflow *coverflow)
+{
+        coverflow->priv->vshader = load_shader (GL_VERTEX_SHADER_ARB, "shader.vert");
+        coverflow->priv->fshader = load_shader (GL_FRAGMENT_SHADER_ARB, "shader.frag");
+        coverflow->priv->program = glCreateProgramObjectARB ();
+        if (coverflow->priv->program == INVALID_PROGRAM) {
+                coverflow->priv->shader_initialized = FALSE;
+                ARIO_LOG_DBG ("Cant create shader program");
+                return;
+        }
+        if (coverflow->priv->vshader != INVALID_SHADER)
+                glAttachObjectARB (coverflow->priv->program, coverflow->priv->vshader);
+        if (coverflow->priv->fshader != INVALID_SHADER)
+                glAttachObjectARB (coverflow->priv->program, coverflow->priv->fshader);
+        glLinkProgramARB (coverflow->priv->program);
+        glUseProgramObjectARB (coverflow->priv->program);
+        coverflow->priv->shader_initialized = TRUE;
+}
+
+static GLuint
+load_shader (GLenum shader_type, gchar *filename)
+{
+        gchar *contents;
+        GLint status = GL_TRUE;
+        GLuint shader = glCreateShaderObjectARB (shader_type);
+        if (shader == INVALID_SHADER) {
+                ARIO_LOG_DBG ("Can't create shader: %s", filename);
+                return INVALID_SHADER;
+        }
+
+        gboolean success = g_file_get_contents (filename, &contents, NULL, NULL);
+        if (success == FALSE) {
+                ARIO_LOG_DBG ("Can't load shader: %s", filename);
+                return INVALID_SHADER;
+        }
+
+        fprintf (stderr, "shader: %d\n%s\n", shader, contents);
+        glShaderSourceARB (shader, 1, &contents, NULL);
+        g_free (contents);
+
+        glCompileShaderARB (shader);
+        //glGetShaderiv (shader, GL_COMPILE_STATUS, &status);
+        if (status != GL_TRUE) {
+                ARIO_LOG_DBG ("Can't compile shader: %s", filename);
+                return INVALID_SHADER;
+        }
+
+        return shader;
 }
