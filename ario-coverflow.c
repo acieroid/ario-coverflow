@@ -46,9 +46,6 @@
 #define INVALID_SHADER 0 /* should absolutely be 0 */
 #define INVALID_PROGRAM 0 /* should absolutely be 0 */
 
-static double angle = 20.0;
-static double pos = 0.0;
-
 static void ario_coverflow_finalize (GObject *object);
 static void ario_coverflow_set_property (GObject *object,
                                            guint prop_id,
@@ -463,12 +460,6 @@ button_press_event (GtkWidget *widget,
                 g_slist_free (criteria);
                 g_slist_free (criterias);
         }
-        else if (event->button == 1 && event->type == GDK_BUTTON_PRESS) {
-          pos+=0.1;
-          fprintf (stderr, "%f\n", angle);
-        }
-        else if (event->button == 3 && event->type == GDK_BUTTON_PRESS)
-          pos-=0.1;
 
         return TRUE;
 }
@@ -477,10 +468,6 @@ static gboolean
 idle (gpointer data)
 {
         ArioCoverflow *coverflow = (ArioCoverflow *) data;
-
-        angle+=0.1;
-        if (angle > 180) angle = -180;
-
         ARIO_LOG_DBG ("Idling");
         return draw (coverflow);
 }
@@ -503,7 +490,6 @@ draw (ArioCoverflow *coverflow)
         glLoadIdentity();
         gluLookAt(0,0,2,0,0,0,0,1,0);
 
-        glActiveTexture (GL_TEXTURE0);
         draw_albums(coverflow);
 
         /* Swap buffers */
@@ -713,7 +699,7 @@ load_shader (GLenum shader_type, gchar *filename)
                 return INVALID_SHADER;
         }
 
-        glShaderSource (shader, 1, &contents, NULL);
+        glShaderSource (shader, 1, (const GLchar **) &contents, NULL);
         g_free (contents);
 
         glCompileShader (shader);

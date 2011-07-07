@@ -17,7 +17,7 @@ cflags = ""
 for subdir in ario_subdirs:
     cflags += "-I" + ario_src_dir + "/" + subdir + " "
 
-cflags += "-DLOCALE_DIR=\\\"\"" + locale_dir + "\"\\\" -DHAVE_CONFIG -g"
+cflags += "-DLOCALE_DIR=\\\"\"" + locale_dir + "\"\\\" -DHAVE_CONFIG -g -DDEBUG"
 
 
 for lib in libs:
