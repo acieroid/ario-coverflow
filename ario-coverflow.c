@@ -503,6 +503,7 @@ draw (ArioCoverflow *coverflow)
         glLoadIdentity();
         gluLookAt(0,0,2,0,0,0,0,1,0);
 
+        glActiveTexture (GL_TEXTURE0);
         draw_albums(coverflow);
 
         /* Swap buffers */
@@ -678,20 +679,20 @@ gl_init_textures (ArioCoverflow *coverflow)
 static void
 gl_init_shaders (ArioCoverflow *coverflow)
 {
-        coverflow->priv->vshader = load_shader (GL_VERTEX_SHADER_ARB, "shader.vert");
-        coverflow->priv->fshader = load_shader (GL_FRAGMENT_SHADER_ARB, "shader.frag");
-        coverflow->priv->program = glCreateProgramObjectARB ();
+        coverflow->priv->vshader = load_shader (GL_VERTEX_SHADER, "shader.vert");
+        coverflow->priv->fshader = load_shader (GL_FRAGMENT_SHADER, "shader.frag");
+        coverflow->priv->program = glCreateProgram ();
         if (coverflow->priv->program == INVALID_PROGRAM) {
                 coverflow->priv->shader_initialized = FALSE;
                 ARIO_LOG_DBG ("Cant create shader program");
                 return;
         }
         if (coverflow->priv->vshader != INVALID_SHADER)
-                glAttachObjectARB (coverflow->priv->program, coverflow->priv->vshader);
+                glAttachShader (coverflow->priv->program, coverflow->priv->vshader);
         if (coverflow->priv->fshader != INVALID_SHADER)
-                glAttachObjectARB (coverflow->priv->program, coverflow->priv->fshader);
-        glLinkProgramARB (coverflow->priv->program);
-        glUseProgramObjectARB (coverflow->priv->program);
+                glAttachShader (coverflow->priv->program, coverflow->priv->fshader);
+        glLinkProgram (coverflow->priv->program);
+        glUseProgram (coverflow->priv->program);
         coverflow->priv->shader_initialized = TRUE;
 }
 
@@ -700,7 +701,7 @@ load_shader (GLenum shader_type, gchar *filename)
 {
         gchar *contents;
         GLint status = GL_TRUE;
-        GLuint shader = glCreateShaderObjectARB (shader_type);
+        GLuint shader = glCreateShader (shader_type);
         if (shader == INVALID_SHADER) {
                 ARIO_LOG_DBG ("Can't create shader: %s", filename);
                 return INVALID_SHADER;
@@ -712,12 +713,11 @@ load_shader (GLenum shader_type, gchar *filename)
                 return INVALID_SHADER;
         }
 
-        fprintf (stderr, "shader: %d\n%s\n", shader, contents);
-        glShaderSourceARB (shader, 1, &contents, NULL);
+        glShaderSource (shader, 1, &contents, NULL);
         g_free (contents);
 
-        glCompileShaderARB (shader);
-        //glGetShaderiv (shader, GL_COMPILE_STATUS, &status);
+        glCompileShader (shader);
+        glGetShaderiv (shader, GL_COMPILE_STATUS, &status);
         if (status != GL_TRUE) {
                 ARIO_LOG_DBG ("Can't compile shader: %s", filename);
                 return INVALID_SHADER;
