@@ -81,8 +81,10 @@ static void load_texture (ArioServerAlbum *album);
 
 static void gl_init_lights(void);
 static void gl_init_textures(ArioCoverflow *coverflow);
+#ifdef ARIO_COVERFLOW_USE_SHADERS
 static void gl_init_shaders (ArioCoverflow *coverflow);
 static GLuint load_shader (GLenum shader_type, gchar *filename);
+#endif
 
 struct ArioCoverflowPrivate
 {
@@ -360,7 +362,9 @@ realize (GtkWidget *widget, gpointer data)
       
         gl_init_lights ();
         gl_init_textures (coverflow);
+#ifdef ARIO_COVERFLOW_USE_SHADERS
         gl_init_shaders (coverflow);
+#endif
         allocate_textures (coverflow);
 
         /* Display lists */
@@ -662,6 +666,7 @@ gl_init_textures (ArioCoverflow *coverflow)
         }
 }
 
+#ifdef ARIO_COVERFLOW_USE_SHADERS
 static void
 gl_init_shaders (ArioCoverflow *coverflow)
 {
@@ -711,3 +716,4 @@ load_shader (GLenum shader_type, gchar *filename)
 
         return shader;
 }
+#endif
