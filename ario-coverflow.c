@@ -391,6 +391,7 @@ configure_event (GtkWidget *widget,
                  gpointer data)
 {
         ARIO_LOG_DBG ("Configuring");
+        ArioCoverflow *coverflow = (ArioCoverflow *) data;
         GdkGLContext *glcontext = gtk_widget_get_gl_context (widget);
         GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable (widget);
         GtkAllocation allocation;
@@ -406,7 +407,7 @@ configure_event (GtkWidget *widget,
         gluPerspective(60,((float) allocation.width)/((float) allocation.height), 1, 1000);
 
         gdk_gl_drawable_gl_end (gldrawable);
-        return TRUE;
+        return draw(coverflow);
 }
 
 static gboolean
@@ -427,7 +428,7 @@ scroll_event (GtkWidget *widget,
         }
 
         allocate_textures (coverflow);
-        return TRUE;
+        return draw(coverflow);
 }
 
 static gboolean
@@ -465,7 +466,7 @@ button_press_event (GtkWidget *widget,
                 g_slist_free (criterias);
         }
 
-        return TRUE;
+        return draw(coverflow);
 }
 
 static gboolean
